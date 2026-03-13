@@ -9994,18 +9994,18 @@ ol.control.GeoBookmark = class olcontrolGeoBookmark extends ol.control.Control {
     var ul = this.element.querySelector("ul");
     var self = this;
     ul.innerHTML = '';
-    for (var b in bmark) {
+    Object.keys(bmark).forEach(function(b) {
       var li = document.createElement('li');
       li.textContent = b;
       li.setAttribute('data-bookmark', JSON.stringify(bmark[b]));
       li.setAttribute('data-name', b);
       li.addEventListener('click', function (e) {
-        var bm = JSON.parse(e.target.getAttribute("data-bookmark"));
+        var bm = JSON.parse(li.getAttribute("data-bookmark"));
         this.getMap().getView().setCenter(bm.pos);
         if (bm.zoom !== undefined) this.getMap().getView().setZoom(bm.zoom);
         if (bm.rot !== undefined) this.getMap().getView().setRotation(bm.rot || 0);
         this.element.classList.add('ol-collapsed')
-        this.dispatchEvent({ type: 'select', name: e.target.getAttribute("data-name"), bookmark: bm });
+        this.dispatchEvent({ type: 'select', name: li.getAttribute("data-name"), bookmark: bm });
       }.bind(this));
       ul.appendChild(li);
       if (modify && !bmark[b].permanent) {
@@ -10020,7 +10020,7 @@ ol.control.GeoBookmark = class olcontrolGeoBookmark extends ol.control.Control {
         });
         li.appendChild(button);
       }
-    }
+    }.bind(this));
     try {
       localStorage[this.get('namespace') + "@bookmark"] = JSON.stringify(bmark);
     } catch (e) { console.warn('Failed to access localStorage...'); }
