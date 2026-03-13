@@ -127,6 +127,12 @@
           use circle shape
         </label>
       </li>
+      <li>
+        <label>
+          <input id="prop" type="checkbox" onchange="reset();" />
+          proportional 
+        </label>
+      </li>
     
       <li>
         <div class="info">
@@ -217,12 +223,28 @@
 
   // Style function 
   var min, max;
+  var prop = document.getElementById('prop');
   var styleFn = function(f,res){
     var color;
     if (f.get('features').length > min+2*(max-min)/3) color = [136, 0, 0, .5];
     else if (f.get('features').length > min + (max-min)/3) color = [255, 165, 0, .5];
     else color = [0, 136, 0, .5];
-    return [ new ol.style.Style({ fill: new ol.style.Fill({  color: color }) }) ];
+    // Proportional form
+    if (prop.checked) {
+      return [ new ol.style.Style({ 
+        fill: new ol.style.Fill({  color: color }),
+        geometry: (f) => {
+          var scale = Math.min(1.2, f.get('features').length / max);
+          var geom = f.getGeometry().clone();
+          geom.scale(scale)
+          return geom;
+        }
+      }) ];
+    } else {
+      return [ new ol.style.Style({ 
+        fill: new ol.style.Fill({  color: color }) 
+      }) ];
+    }
   };
   // The rid layer
   var grid = new ol.layer.Vector({ 
