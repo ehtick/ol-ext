@@ -3,10 +3,12 @@ import ol_Feature from "ol/Feature.js";
 import ol_geom_MultiPolygon from "ol/geom/MultiPolygon.js";
 
 /** Contour source
- * Code by KingLL2000
  * Generate contour polygons from grid data using d3-contour.
  * Coordinates are assumed to be in EPSG:4326.
+ * Author: KingLL2000
  *
+ * Tips：Import D3 before using ol.source.Contour
+ * 
  * Main input is a regular grid:
  * `{ x:number[][], y:number[][], z:number[][] }`.
  *
@@ -19,10 +21,11 @@ import ol_geom_MultiPolygon from "ol/geom/MultiPolygon.js";
  * It does not compute min/max, does not normalize values, and does not perform coordinate transforms.
  * Style the result in a vector layer using the feature `value` attribute.
  * Thresholds can be set via the class property source.thresholds. Use a number of levels; it is passed directly to d3-contour.
- *
+ * tips：Import D3 before using ol.source.Contour
  * @constructor
  * @extends {ol/source/Vector}
  * @param {*} [options] extend ol/source/Vector options
+ *  @param {Object} [options.factory] d3.contours 
  *  @param {Object} [options.data] grid data {x,y,z}
  *  @param {number} options.thresholds contour thresholds
  * @example
@@ -32,6 +35,7 @@ import ol_geom_MultiPolygon from "ol/geom/MultiPolygon.js";
  *   z: [[null, 2, null], [2, 5, 2]]
  * };
  * var source = new ol.source.Contour({
+ *   factory:d3.contours,
  *   data: data,
  *   thresholds: 6 // number of levels
  * });
@@ -53,6 +57,15 @@ var ol_source_Contour = class olsourceContour extends ol_source_Vector {
     var data = options.data;
     delete options.data;
     super(options);
+    if (options.factory) {
+        this._factory = options.factory;
+    } else {
+        if (typeof d3 !== "undefined" && typeof d3.contours === "function") {
+            this._factory = d3.contours;
+        } else {
+            throw new Error("factory parameter missing, d3.contours not found");
+        }
+    }
 
     this._grid = null;
     this.set("thresholds", options.thresholds);
@@ -88,10 +101,9 @@ var ol_source_Contour = class olsourceContour extends ol_source_Vector {
    */
   calculateContours() {
     this.clear();
-
     var contourFactory = this._getContourFactory();
     if (!contourFactory) {
-      console.error("[ol/source/Contour] d3-contour is not available.");
+      console.error("d3-contour is not available.");
       return;
     }
 
@@ -119,10 +131,7 @@ var ol_source_Contour = class olsourceContour extends ol_source_Vector {
    * @private
    */
   _getContourFactory() {
-    // if (typeof contours === "function") return d3.contours;
-    if (typeof d3 !== "undefined" && typeof d3.contours === "function")
-      return d3.contours;
-    return null;
+    return this._factory;
   }
   /** Normalize grid data (lightweight validation only)
    * @param {{x:number[][],y:number[][],z:number[][]}} data

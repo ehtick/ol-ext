@@ -16,7 +16,6 @@
     "gulp-concat": "^2.6.1",
     "gulp-cssmin": "^0.2.0",
     "gulp-header": "^2.0.5",
-    "gulp-jsdoc3": "^2.0.0",
     "gulp-minify": "^3.1.0",
     "gulp-watch": "^5.0.1",
     "live-server": "^1.2.0",
@@ -74,9 +73,5 @@
     "type": "git",
     "url": "git+https://github.com/Viglino/ol-ext.git"
   },
-  "license": "BSD-3-Clause",
-  "dependencies": {
-    "d3": "^7.9.0",
-    "d3-contour": "^4.0.2"
-  }
+  "license": "BSD-3-Clause"
 }

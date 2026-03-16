@@ -51,6 +51,7 @@
   </a>
 
   <div class="info">
+    <p> Tips：Import D3 before using ol.source.Contour</p>
     <p>
       <i>ol/source/Contour</i> accepts grid input:<br>
       <code>{ x:number[][], y:number[][], z:number[][] }</code>
@@ -111,6 +112,7 @@
     var colorMax = 10
 
     var contourSource = new ol.source.Contour({
+      factory:d3.contours,
       data: null,
       thresholds: 6,
     })
