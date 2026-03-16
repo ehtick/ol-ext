@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <!--
+  Copyright (c) 2015-2026 Jean-Marc VIGLINO,
+  released under CeCILL-B (french BSD like) licence: http://www.cecill.info/
+  Code by KingLL2000
+-->
+  <title>ol-ext: Contour grid data</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1" />
+  <meta name="description" content="Contour polygons generated from x/y/z grid data using d3-contour." />
+  <meta name="keywords" content="ol, openlayers, source, contour, grid, x y z, d3-contour" />
+
+  <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.0.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@latest/ol.css" />
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/ol@latest/dist/ol.js"></script>
+  <script type="text/javascript" src="../../dist/extra/d3.js"></script>
+
+
+  <link rel="stylesheet" href="../../dist/ol-ext.css" />
+  <script type="text/javascript" src="../../dist/ol-ext.js"></script>
+  <script src="https://unpkg.com/elm-pep"></script>
+
+  <link rel="stylesheet" href="../style.css" />
+  <style>
+    #map {
+      width: 600px;
+      height: 400px;
+      max-width: 100%;
+    }
+
+    .hint {
+      font-size: .9em;
+      opacity: .8;
+    }
+
+    .status {
+      font-size: .85em;
+      opacity: .7;
+      padding-left: .5em;
+    }
+  </style>
+</head>
+
+<body>
+  <a href="https://github.com/Viglino/ol-ext" class="icss-github-corner"><i></i></a>
+  <a href="../../index.html">
+    <h1>ol-ext: Contour grid data</h1>
+  </a>
+
+  <div class="info">
+    <p> Tips：Import D3 before using ol.source.Contour</p>
+    <p>
+      <i>ol/source/Contour</i> accepts grid input:<br>
+      <code>{ x:number[][], y:number[][], z:number[][] }</code>
+    </p>
+    <p>
+      In this example <code>x</code>=longitude, <code>y</code>=latitude, <code>z</code>=value.
+      Data is treated as EPSG:4326 (no coordinate transform).
+    </p>
+  </div>
+
+  <div id="map"></div>
+  <div class="options">
+    <ul>
+      <li>
+        Data:
+        <select id="dataset" onchange="setDataset(this.value)">
+          <option value="inline" selected>Inline demo grid</option>
+          <option value="file">contour_gridData.json</option>
+        </select>
+        <span id="dataStatus" class="status"></span>
+      </li>
+      <li>
+        Levels:
+        <select id="levels" onchange="rebuild()">
+          <option value="4">4</option>
+          <option value="6" selected>6</option>
+          <option value="10">10</option>
+          <option value="20">20</option>
+        </select>
+      </li>
+      <li>
+        Scale z:
+        <input id="scale" type="range" min="0.5" max="2.5" step="0.1" value="1" var scale=Number($("#scale").val()) || 1
+          <span id="scaleVal">1</span>
+      </li>
+    </ul>
+    <div class="hint">No-data cells use <code>null</code> in z matrix.</div>
+  </div>
+
+  <script type="text/javascript">
+    var map = new ol.Map({
+      target: 'map',
+      view: new ol.View({
+        projection: 'EPSG:4326',
+        zoom: 11,
+        center: [8.55, 47.36]
+      }),
+      layers: []
+    })
+
+
+    var colorMap = [
+      { color: '#053061', value: 0 },
+      { color: '#eaf1f5', value: 0.5 },
+      { color: '#67001f', value: 1 }
+    ]
+    var colorMin = 0
+    var colorMax = 10
+
+    var contourSource = new ol.source.Contour({
+      factory:d3.contours,
+      data: null,
+      thresholds: 6,
+    })
+    function setColorRange(mode, scale) {
+      if (mode === 'inline') {
+        var s = Number(scale) || 1
+        colorMin = 0
+        colorMax = 10 * s
+      } else {
+        colorMin = 10.5
+        colorMax = 13.6
+      }
+    }
+    function color(v) {
+      if (v === null || typeof v === 'undefined' || isNaN(v)) return 'rgba(0,0,0,0)'
+      var min = colorMin
+      var max = colorMax
+      if (v > max) return colorMap[colorMap.length - 1].color
+      if (v < min) return colorMap[0].color
+      var loc = (v - min) / (max - min)
+      if (loc < 0 || loc > 1) return 'rgba(0,0,0,0)'
+      var index = 0
+      for (var i = 0; i < colorMap.length - 1; i++) {
+        if (loc >= colorMap[i].value && loc <= colorMap[i + 1].value) {
+          index = i
+        }
+      }
+      function trim(s) { return s.charAt(0) === '#' ? s.substring(1, 7) : s }
+      function hex(c) {
+        var s = '0123456789abcdef'
+        var ii = parseInt(c, 10)
+        if (ii === 0 || isNaN(c)) return '00'
+        ii = Math.round(Math.min(Math.max(0, ii), 255))
+        return s.charAt((ii - (ii % 16)) / 16) + s.charAt(ii % 16)
+      }
+      function convertToRGB(hex) {
+        return [parseInt(trim(hex).substring(0, 2), 16), parseInt(trim(hex).substring(2, 4), 16), parseInt(trim(hex).substring(4, 6), 16)]
+      }
+      function convertToHex(rgb) {
+        return hex(rgb[0]) + hex(rgb[1]) + hex(rgb[2])
+      }
+      var c1 = convertToRGB(colorMap[index].color)
+      var c2 = convertToRGB(colorMap[index + 1].color)
+      var f = (loc - colorMap[index].value) / (colorMap[index + 1].value - colorMap[index].value)
+      var rgb = [
+        c1[0] + (c2[0] - c1[0]) * f,
+        c1[1] + (c2[1] - c1[1]) * f,
+        c1[2] + (c2[2] - c1[2]) * f
+      ]
+      return '#' + convertToHex(rgb)
+    }
+
+    map.addLayer(new ol.layer.Tile({
+      source: new ol.source.OSM(),
+    }))
+
+    map.addLayer(new ol.layer.Vector({
+      source: contourSource,
+      style: function (f) {
+        var v = Number(f.get('value')) || 0
+        const c = color(v)
+        return new ol.style.Style({
+          fill: new ol.style.Fill({ color: c }),
+          stroke: new ol.style.Stroke({ color: (c || 'rgba(0,0,0,0)').replace('0.45', '0.9'), width: 1.5 })
+        })
+      }
+    }))
+
+    
+    var fileDataCache = null
+
+    function sampleData(scale) {
+      scale = scale || 1
+      return {
+        x: [
+          [8.475, 8.5, 8.525, 8.55, 8.575, 8.6, 8.625],
+          [8.475, 8.5, 8.525, 8.55, 8.575, 8.6, 8.625],
+          [8.475, 8.5, 8.525, 8.55, 8.575, 8.6, 8.625],
+          [8.475, 8.5, 8.525, 8.55, 8.575, 8.6, 8.625],
+          [8.475, 8.5, 8.525, 8.55, 8.575, 8.6, 8.625],
+          [8.475, 8.5, 8.525, 8.55, 8.575, 8.6, 8.625],
+          [8.475, 8.5, 8.525, 8.55, 8.575, 8.6, 8.625]
+        ],
+        y: [
+          [47.42, 47.42, 47.42, 47.42, 47.42, 47.42, 47.42],
+          [47.4, 47.4, 47.4, 47.4, 47.4, 47.4, 47.4],
+          [47.38, 47.38, 47.38, 47.38, 47.38, 47.38, 47.38],
+          [47.36, 47.36, 47.36, 47.36, 47.36, 47.36, 47.36],
+          [47.34, 47.34, 47.34, 47.34, 47.34, 47.34, 47.34],
+          [47.32, 47.32, 47.32, 47.32, 47.32, 47.32, 47.32],
+          [47.3, 47.3, 47.3, 47.3, 47.3, 47.3, 47.3]
+        ],
+        z: [
+          [null, null, null, null, null, null, null],
+          [null, null, null, 2 * scale, null, null, null],
+          [null, null, 2 * scale, 5 * scale, 2 * scale, null, null],
+          [null, 2 * scale, 5 * scale, 10 * scale, 5 * scale, 2 * scale, null],
+          [null, null, 2 * scale, 5 * scale, 2 * scale, null, null],
+          [null, null, null, 2 * scale, null, null, null],
+          [null, null, null, null, null, null, null]
+        ]
+      }
+    }
+
+    function sanitizeJson(text) {
+      return text.replace(/,\s*([}\]])/g, '$1')
+    }
+
+    function loadFileData() {
+      if (fileDataCache) return Promise.resolve(fileDataCache)
+      $('#dataStatus').text('loading...')
+      return fetch('../data/contour_gridData.json')
+        .then(function (r) { return r.text() })
+        .then(function (t) {
+          var data = JSON.parse(sanitizeJson(t))
+          fileDataCache = data
+          $('#dataStatus').text('')
+          return data
+        })
+        .catch(function (err) {
+          $('#dataStatus').text('load failed')
+          throw err
+        })
+    }
+
+    function computeExtent(data) {
+      var xAxis = [], yAxis = []
+      var h = data.z.length
+      var w = data.z[0].length
+      for (var j = 0; j < h; j++) {
+        for (var i = 0; i < w; i++) {
+          var xv = data.x[j][i]
+          var yv = data.y[j][i]
+          xv = (xv === null || typeof xv === "undefined") ? NaN : Number(xv)
+          yv = (yv === null || typeof yv === "undefined") ? NaN : Number(yv)
+          if (!isFinite(xAxis[i]) && isFinite(xv)) xAxis[i] = xv
+          if (!isFinite(yAxis[j]) && isFinite(yv)) yAxis[j] = yv
+        }
+      }
+      var minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity
+      for (var jj = 0; jj < h; jj++) {
+        for (var ii = 0; ii < w; ii++) {
+          var xx = data.x[jj][ii]
+          var yy = data.y[jj][ii]
+          xx = (xx === null || typeof xx === "undefined") ? NaN : Number(xx)
+          yy = (yy === null || typeof yy === "undefined") ? NaN : Number(yy)
+          if (!isFinite(xx) && isFinite(xAxis[ii])) xx = xAxis[ii]
+          if (!isFinite(yy) && isFinite(yAxis[jj])) yy = yAxis[jj]
+          if (!isFinite(xx) || !isFinite(yy)) continue
+          if (xx < minx) minx = xx
+          if (yy < miny) miny = yy
+          if (xx > maxx) maxx = xx
+          if (yy > maxy) maxy = yy
+        }
+      }
+      return [minx, miny, maxx, maxy]
+    }
+
+    function applyData(data) {
+      contourSource.setData(data)
+      var extent = computeExtent(data)
+      var view = map.getView()
+      view.fit(extent, { size: map.getSize(), padding: [20, 20, 20, 20] })
+    }
+
+    function rebuild() {
+      var levels = Number($("#levels").val()) || 6
+      contourSource.thresholds = levels
+
+      var mode = $("#dataset").val()
+      if (mode === 'inline') {
+        var scale = Number($("#scale").val()) || 1
+        setColorRange(mode, scale)
+        applyData(sampleData(scale))
+      } else {
+        setColorRange(mode, 1)
+        loadFileData().then(function (data) {
+          applyData(data)
+        })
+      }
+    }
+
+    function setDataset(value) {
+      var isInline = value === 'inline'
+      var scale = Number($("#scale").val()) || 1
+      var scale = Number($("#scale").val()) || 1
+      rebuild()
+    }
+
+    // init
+    setDataset('inline')
+  </script>
+</body>
+
+</html>
