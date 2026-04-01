@@ -2113,17 +2113,21 @@ body > .ol-ext-dialog > form {
   display:block;
 }
 
-.ol-control.ol-layerswitcher .ol-counter {
+.ol-control[class*="ol-layerswitcher"] .ol-counter {
   display: none;
   position: absolute;
   right: 0.3em;
   top: 0;
   z-index: 22;
   line-height: 1.5em;
-  text-align: left;
+  text-align: center;
   font-size: 0.65em;
+  background-color: #fff;
+  min-width: 1.5em;
+  -webkit-box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+          box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
 }
-.ol-control.ol-layerswitcher.ol-counter .ol-counter {
+.ol-control.ol-counter[class*="ol-layerswitcher"] .ol-counter {
   display: block;
 }
 .ol-control.ol-layer-shop .ol-counter {
